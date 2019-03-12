@@ -4,6 +4,7 @@
 #include <tr1/functional>
 #include <string>
 #include <sstream>
+#include <vector>
 
 using std::tr1::hash;
 
@@ -18,8 +19,8 @@ std::string getString(unsigned i){
     return ss.str();
 }
 
-bool compWorkerNode(const WorkerNode a, const WorkerNode b){
-    return a.pos_id < b.pos_id;
+bool compWorkerNode(const WorkerNode *a, const WorkerNode *b){
+    return a->pos_id < b->pos_id;
 }
 
 class LoadBalancer{
@@ -29,7 +30,7 @@ class LoadBalancer{
         // maximum number of requests, number of servers
         unsigned max_requests, nodes;
         // array of worker nodes
-        WorkerNode *nodeArr;
+        std::vector<WorkerNode*> nodeArr;
         void initializeWorkerNodes();
         std::string findNearestNode(unsigned map_pos);
         int findNearestNodeUtil(unsigned low, unsigned high, unsigned map_pos);
@@ -50,14 +51,14 @@ LoadBalancer::LoadBalancer(unsigned max_requests, unsigned nodes){
 }
 
 void LoadBalancer::initializeWorkerNodes(){
-    nodeArr = new WorkerNode[nodes];
-
     for(unsigned i = 0; i<nodes;i++){
-        nodeArr[i].id = getString(i);
-        nodeArr[i].pos_id = h(nodeArr[i].id) % max_requests;
+        WorkerNode *node = new WorkerNode;
+        node->id = getString(i);
+        node->pos_id = h(node->id) % max_requests;
+        nodeArr.push_back(node);
     }
 
-    std::sort(nodeArr, nodeArr + nodes, compWorkerNode);
+    std::sort(nodeArr.begin(), nodeArr.end(), compWorkerNode);
 }
 
 std::string LoadBalancer::assignTask(const std::string request_id){
@@ -68,28 +69,28 @@ std::string LoadBalancer::assignTask(const std::string request_id){
 std::string LoadBalancer::findNearestNode(unsigned map_pos){
     // ceil of a number from the given array
     int i = findNearestNodeUtil(0, nodes, map_pos);
-    return (i != -1) ? nodeArr[i].id : nodeArr[0].id;
+    return (i != -1) ? nodeArr[i]->id : nodeArr[0]->id;
 }
 
 int LoadBalancer::findNearestNodeUtil(unsigned low, unsigned high, unsigned map_pos){ 
   int mid;
-  if(map_pos <= nodeArr[low].pos_id) 
+  if(map_pos <= nodeArr[low]->pos_id) 
     return low;
-  if(map_pos > nodeArr[high].pos_id) 
+  if(map_pos > nodeArr[high]->pos_id) 
     return -1; 
 
   mid = (low + high)/2;
   
-  if(nodeArr[mid].pos_id == map_pos) 
+  if(nodeArr[mid]->pos_id == map_pos) 
     return mid;
-  else if(nodeArr[mid].pos_id < map_pos){ 
-    if(mid + 1 <= high && map_pos <= nodeArr[mid+1].pos_id) 
+  else if(nodeArr[mid]->pos_id < map_pos){ 
+    if(mid + 1 <= high && map_pos <= nodeArr[mid+1]->pos_id) 
       return mid + 1; 
     else 
       return findNearestNodeUtil(mid+1, high, map_pos); 
   } 
   else{
-    if(mid - 1 >= low && map_pos > nodeArr[mid-1].pos_id) 
+    if(mid - 1 >= low && map_pos > nodeArr[mid-1]->pos_id) 
       return mid;
     else     
       return findNearestNodeUtil(low, mid - 1, map_pos); 
@@ -104,7 +105,7 @@ void LoadBalancer::printInfo(){
 
     std::cout << "node id" << std::setw(10) << "position" << std::endl;
     for(unsigned i=0;i<nodes;i++){
-        std::cout << nodeArr[i].id << std::setw(10) << nodeArr[i].pos_id << std::endl;
+        std::cout << nodeArr[i]->id << std::setw(10) << nodeArr[i]->pos_id << std::endl;
     }
 }
 
@@ -116,7 +117,6 @@ std::string LoadBalancer::generateRandomRequest(){
 int main(){
     LoadBalancer balancer(500, 20);
 
-
     std::cout << "------------------------------" << std::endl;
     std::cout << "Generating 10 random requests " << std::endl << std::endl;
     for(unsigned i=0;i<10;i++){
@@ -124,5 +124,6 @@ int main(){
         std::string node_id = balancer.assignTask(request_id);
         std::cout<< request_id << " maps to worker node: " << node_id << std::endl;
     }
+    
     return 0;
 }
